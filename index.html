@@ -287,15 +287,16 @@ const MP={on:false,over:false,started:false,remote:{},players:{},world:{},seen:{
 let db,uid,SX=0;
 const PAL=[0xff7aa8,0x6ec6ff,0xffc94d,0xb18cff,0xff9a5c,0x5fe0c0,0xe86bff,0xd0d86b],WX={cerah:0,berawan:1,mendung:2,hujan:3,petir:4,salju:5,semi:6};
 const now=()=>Date.now()+MP.off,B=p=>db.ref('rooms/'+MP.code+(p?'/'+p:'')),msg=t=>$('rm').textContent=t||'',mcp=new G.Vector3(),mlk=new G.Vector3(),tv=new G.Vector3();
+function fbErr(e){console.error(e);const c=(e&&(e.code||e.message))||'';let h=c;if(/operation-not-supported|unauthorized-domain|web-storage/i.test(c))h+=' → buka lewat https/localhost (bukan file://) & tambahkan domain di Authentication > Settings > Authorized domains';else if(/admin-restricted|operation-not-allowed/i.test(c))h+=' → aktifkan Anonymous di Authentication';else if(/api-key/i.test(c))h+=' → cek API key / pembatasan domain key';else if(/PERMISSION/i.test(c))h+=' → ditolak Rules Realtime Database';return msg('Gagal: '+h)}
 function fbInit(){if(db)return Promise.resolve();if(!FB_CONFIG.apiKey){msg('Isi FB_CONFIG di bagian atas script room dulu.');return Promise.reject()}
  firebase.initializeApp(FB_CONFIG);db=firebase.database();db.ref('.info/serverTimeOffset').on('value',s=>MP.off=s.val()||0);return firebase.auth().signInAnonymously().then(c=>{uid=c.user.uid})}
 const nm=()=>($('rn').value.trim()||'Ulat').slice(0,16);
 $('mpb').onclick=()=>{$('ov').className='';$('room').className='show'};$('rx').onclick=()=>location.reload();
 $('rc').onclick=async()=>{msg('Membuat room…');try{await fbInit();const role=$('rr').value;
  for(let i=0;i<8;i++){MP.code=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[R()*32|0]).join('');
-  try{await B('meta').set({host:uid,hostRole:role,duration:300,weather:'auto',status:'lobby'})}catch(e){continue}
-  MP.host=true;return enter(MP.code,role)}msg('Gagal membuat room')}catch(e){}};
-$('rj').onclick=async()=>{const c=$('rk').value.trim().toUpperCase();if(c.length!==4)return msg('Kode harus 4 huruf');msg('Masuk…');try{await fbInit();MP.code=c;enter(c,'player')}catch(e){}};
+  try{await B('meta').set({host:uid,hostRole:role,duration:300,weather:'auto',status:'lobby'})}catch(e){if(e&&/PERMISSION/i.test(e.code||e.message||''))return fbErr(e);continue}
+  MP.host=true;return enter(MP.code,role)}msg('Gagal membuat room')}catch(e){fbErr(e)}};
+$('rj').onclick=async()=>{const c=$('rk').value.trim().toUpperCase();if(c.length!==4)return msg('Kode harus 4 huruf');msg('Masuk…');try{await fbInit();MP.code=c;enter(c,'player')}catch(e){fbErr(e)}};
 async function enter(code,role){try{const m=(await B('meta').once('value')).val();if(!m)return msg('Room tidak ditemukan');if(m.status!=='lobby')return msg('Permainan sudah dimulai');
  MP.name=nm();MP.role=MP.host?role:'player';await B('members/'+uid).set(MP.role);
  if(MP.role==='player'){let sl=-1;for(let n=0;n<8&&sl<0;n++){try{await B('slots/'+n).set(uid);sl=n}catch(e){}}
@@ -306,7 +307,7 @@ async function enter(code,role){try{const m=(await B('meta').once('value')).val(
  B('world').on('child_added',s=>addW(s.key,s.val()));
  B('world').on('child_removed',s=>{delW(s.key);const v=s.val();if(MP.host&&v&&MP.meta&&MP.meta.status==='playing'&&!MP.over)spawn(v.t)});
  B('claims').on('child_added',s=>{if(MP.host)B().update({['world/'+s.key]:null,['claims/'+s.key]:null}).catch(()=>{})});
- B('hits').on('child_added',onHit)}catch(e){msg('Gagal: '+(e.message||e))}}
+ B('hits').on('child_added',onHit)}catch(e){fbErr(e)}}
 function lobbyUI(){if(MP.on||!MP.meta)return;const m=MP.meta,ps=Object.values(MP.players).sort((a,b)=>a.slot-b.slot);$('r1').style.display='none';$('r2').style.display='';msg('');$('rcode').textContent=MP.code;
  $('rl').textContent=ps.map(p=>'🐛 '+p.name+(p.online===false?' (offline)':'')).join('\n')+(m.hostRole==='spectator'?'\n👁️ Host: pengawas':'');
  $('rh').style.display=MP.host?'':'none';$('rinfo').textContent=MP.host?'':`Durasi ${m.duration/60} menit · Cuaca ${m.weather} · menunggu host…`;
